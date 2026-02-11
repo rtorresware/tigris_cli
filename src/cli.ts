@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
 import { Command as CommanderCommand } from 'commander';
-import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import type { Argument, OperationSpec, CommandSpec } from './types.js';
+import { getModule, hasModule } from './lib/registry.js';
 import { loadSpecs } from './utils/specs.js';
 import { checkForUpdates } from './utils/update-check.js';
 import { version } from '../package.json';
@@ -26,9 +24,6 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const specs = loadSpecs();
 
 /**
@@ -38,17 +33,7 @@ function hasImplementation(
   commandName: string,
   operationName?: string
 ): boolean {
-  const paths = operationName
-    ? [
-        join(__dirname, 'lib', commandName, `${operationName}.js`),
-        join(__dirname, 'lib', commandName, operationName, 'index.js'),
-      ]
-    : [
-        join(__dirname, 'lib', `${commandName}.js`),
-        join(__dirname, 'lib', commandName, 'index.js'),
-      ];
-
-  return paths.some((p) => existsSync(p));
+  return hasModule(commandName, operationName);
 }
 
 function formatArgumentHelp(arg: Argument): string {
@@ -292,18 +277,9 @@ async function loadModule(
   commandName: string,
   operationName?: string
 ): Promise<{ module: Record<string, unknown> | null; error: string | null }> {
-  const paths = operationName
-    ? [
-        `./lib/${commandName}/${operationName}.js`,
-        `./lib/${commandName}/${operationName}/index.js`,
-      ]
-    : [`./lib/${commandName}.js`, `./lib/${commandName}/index.js`];
-
-  for (const path of paths) {
-    const module = await import(path).catch(() => null);
-    if (module) {
-      return { module, error: null };
-    }
+  const module = getModule(commandName, operationName);
+  if (module) {
+    return { module, error: null };
   }
 
   const cmdDisplay = operationName

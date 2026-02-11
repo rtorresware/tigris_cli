@@ -17,6 +17,12 @@ export default defineConfig((options) => ({
   sourcemap: false,
   clean: true,
   minify: true,
+  esbuildOptions(buildOptions) {
+    buildOptions.loader = {
+      ...(buildOptions.loader ?? {}),
+      '.yaml': 'text',
+    };
+  },
   onSuccess: async () => {
     copySpecs();
 
